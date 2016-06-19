@@ -46,13 +46,16 @@ import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.X509TrustManager;
 
 import android.os.PatternMatcher;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 
@@ -189,6 +192,9 @@ public abstract class PircBot implements ReplyConstants {
           }
           try {
             ssocket.startHandshake();
+            if (!_hostnameVerifier.verify(hostname, ssocket.getSession())) {
+              throw new SSLException("SSL certificate hostname does not match");
+            }
           } catch ( Exception exx ) {
             throw new SSLException("SSL handshake failed: " + exx.toString(), exx);
           }
@@ -3281,14 +3287,21 @@ public abstract class PircBot implements ReplyConstants {
 
 
   // XXX: Better TLS support
-  X509TrustManager[] _trustManagers = new X509TrustManager[]{new NaiveTrustManager()};
+  @NonNull X509TrustManager[] _trustManagers = new X509TrustManager[]{new NaiveTrustManager()};
+  @NonNull HostnameVerifier _hostnameVerifier = new HostnameVerifier() {
+    @Override
+    public boolean verify(String s, SSLSession sslSession) {
+      throw new RuntimeException("called unimplemented stub verify() in PircBot.java");
+    }
+  };
 
-  public void setTrustManagers(X509TrustManager[] tManagers) {
+  public void setupTrustManagers(X509TrustManager[] tManagers, @NonNull HostnameVerifier hostnameVerifier) {
     if( tManagers == null ) {
       _trustManagers = new X509TrustManager[]{new NaiveTrustManager()};
     } else {
       _trustManagers = tManagers;
     }
+    _hostnameVerifier = hostnameVerifier;
   }
 
 

@@ -34,7 +34,6 @@ import indrora.atomic.model.ServerInfo;
 import indrora.atomic.model.Settings;
 import indrora.atomic.model.Status;
 import indrora.atomic.model.Message.MessageColor;
-import indrora.atomic.receiver.ReconnectReceiver;
 import indrora.atomic.utils.MircColors;
 
 import java.lang.reflect.InvocationTargetException;
@@ -42,15 +41,14 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 
+import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.X509TrustManager;
 
 import org.jibble.pircbot.IrcException;
 import org.jibble.pircbot.NickAlreadyInUseException;
 
-import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -61,13 +59,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.NetworkInfo.State;
-import android.os.Build;
 import android.os.Handler;
-import android.os.Looper;
-import android.os.SystemClock;
+import android.support.annotation.NonNull;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationCompat.Builder;
 import android.util.Log;
 
 import de.duenndns.ssl.MemorizingTrustManager;
@@ -662,8 +656,13 @@ public class IRCService extends Service {
           connection.setIdent(server.getIdentity().getIdent());
           connection.setRealName(server.getIdentity().getRealName());
           connection.setUseSSL(server.useSSL());
+
+          // trust manager
+          MemorizingTrustManager mtm = new MemorizingTrustManager(getApplicationContext());
+          HostnameVerifier hv = mtm.wrapHostnameVerifier(new org.apache.http.conn.ssl.StrictHostnameVerifier());
+
           X509TrustManager[] trustMgr = MemorizingTrustManager.getInstanceList(getApplicationContext());
-          connection.setTrustManagers(trustMgr);
+          connection.setupTrustManagers(trustMgr, hv);
 
           if( server.getCharset() != null ) {
             connection.setEncoding(server.getCharset());
